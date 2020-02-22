@@ -1,6 +1,19 @@
 
-static char help[] = "Nonlinear, time-dependent PDE in 2d.\n";
+static char help[] = "Simple Advection equation solved using FVM in DMPLEX\n";
 
+/*
+   Solves the simple advection equation given by
+
+   q_t + u (q_x) + v (q_y) = 0 using FVM and First Order Upwind discretization. 
+
+   with a user defined initial condition.
+
+   with dirichlet/neumann conditions on the four boundaries of the domain.
+
+   User can define the mesh parameters either in the command line or inside
+   the ProcessOptions() routine.
+
+*/
 
 /*
    Include "petscdmda.h" so that we can use distributed arrays (DMDAs).
@@ -12,6 +25,7 @@ static char help[] = "Nonlinear, time-dependent PDE in 2d.\n";
      petscviewer.h - viewers               petscpc.h  - preconditioners
      petscksp.h   - linear solvers
 */
+
 #include <petscdmplex.h>
 #include <petscts.h>
 #include <petscblaslapack.h>
@@ -29,7 +43,8 @@ extern PetscErrorCode FormFunction(TS,PetscReal,Vec,Vec,void*),FormInitialSoluti
 extern PetscErrorCode MyTSMonitor(TS,PetscInt,PetscReal,Vec,void*);
 extern PetscErrorCode MySNESMonitor(SNES,PetscInt,PetscReal,PetscViewerAndFormat*);
 
-/* ========================================================================== */
+/* ====================Defining the usr defined context====================== */
+
 typedef struct {
   DM        da;
   PetscBool interpolate;                  /* Generate intermediate mesh elements */
@@ -40,7 +55,9 @@ typedef struct {
   PetscScalar delta_x, delta_y;
   PetscInt    cells[2];
 } AppCtx;
-/* ========================================================================== */
+
+/* =========================Options for the scenario========================= */
+
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscErrorCode ierr;
@@ -63,8 +80,12 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsEnd();
   PetscFunctionReturn(0);
 }
-/* ========================================================================== */
-// Routine for Creating the Mesh
+
+/* ======================Routine for Creating the Mesh======================= */
+/*
+  User can provide the file containing the mesh.
+  Or can generate the mesh using DMPlexCreateBoxMesh with the specified options.
+*/
 static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
 {
   size_t         len;
@@ -84,8 +105,6 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
     ierr = DMPlexMarkBoundaryFaces(*dm, 1, label);CHKERRQ(ierr);
     ierr = DMPlexLabelComplete(*dm, label);CHKERRQ(ierr);
     ierr = PetscMalloc1(1, &user->bcFuncs);CHKERRQ(ierr);
-    // user->bcFuncs[0] = zero;
-    // ierr = DMAddBoundary(*dm, DM_BC_ESSENTIAL, "wall", "boundary", 0, 0, NULL, (void (*)(void)) user->bcFuncs[0], 1, &id, user);CHKERRQ(ierr);
   } else {
     ierr = DMPlexCreateFromFile(comm, user->filename, user->interpolate, dm);CHKERRQ(ierr);
   }
@@ -94,8 +113,8 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, AppCtx *user, DM *dm)
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
-/* ========================================================================== */
-/* Checking the Mesh Structure (Simplex or Tensor) */
+
+/* =============Checking the Mesh Structure (Simplex or Tensor)============== */
 static PetscErrorCode CheckMeshTopology(DM dm)
 {
   PetscInt       dim, coneSize, cStart;
@@ -114,8 +133,11 @@ static PetscErrorCode CheckMeshTopology(DM dm)
   ierr = DMPlexCheckFaces(dm, 0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+
 /* ========================================================================== */
-/* Subroutine to define faces information and corresponding neighbors */
+/*
+  Subroutine to define faces information and corresponding neighbors
+*/
 static PetscErrorCode CheckMeshGeometry(DM dm)
 {
   PetscInt       dim, coneSize, cStart, cEnd, c; //cStart, cEnd - cells
@@ -131,19 +153,12 @@ static PetscErrorCode CheckMeshGeometry(DM dm)
   ierr = DMPlexGetConeSize(dm, cStart, &coneSize);CHKERRQ(ierr);
   ierr = PetscMalloc3(dim,&v0,dim*dim,&J,dim*dim,&invJ);CHKERRQ(ierr);
   for (c = cStart; c < cEnd; ++c) {
-    // conesize - no. of nodes supporting the cell
     ierr = DMPlexGetConeSize(dm, c, &conesize); CHKERRQ(ierr);
     ierr = DMPlexGetCone(dm, c, &cone); CHKERRQ(ierr);
-    /* printf("  element = %4d, cone size for this element = %4d \n", c, conesize); */
-    /* for (i = 0; i<conesize;i++) printf("    element[%2d] = %4d\n",i,cone[i]); */
-
-    // Possibly a check for an invalid Jacobian
     ierr = DMPlexComputeCellGeometryFEM(dm, c, NULL, v0, J, invJ, &detJ);CHKERRQ(ierr);
     if (detJ <= 0.0) SETERRQ2(PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE, "Invalid determinant %g for cell %D", (double)detJ, c);
   }
   ierr = PetscFree3(v0,J,invJ);CHKERRQ(ierr);
-  /* ierr = DMPlexGetTransitiveClosure(dm, 1, PETSC_TRUE, &numPoints, &points); CHKERRQ(ierr); */
-  /* ierr = DMPlexRestoreTransitiveClosure(dm, 1, PETSC_TRUE, &numPoints, &points); CHKERRQ(ierr); */
 
     for (c = cStart; c < cEnd; ++c) {
         const PetscInt *faces;
@@ -165,67 +180,6 @@ static PetscErrorCode CheckMeshGeometry(DM dm)
 
   PetscFunctionReturn(0);
 }
-/* ========================================================================== */
-// static PetscErrorCode FindMeshWidths(MPI_Comm comm, AppCtx *ctx)
-// {
-//   PetscErrorCode ierr;
-//   AppCtx         *user=(AppCtx*)ctx;
-//   DM             da = (DM)user->da;
-//   PetscInt       fStart, fEnd, nF;
-//   PetscInt       cell, cStart, cEnd, nC;
-//
-//   /* ---------------Obtaining local cell and face ownership------------------ */
-//   ierr = DMPlexGetHeightStratum(da, 0, &cStart, &cEnd);CHKERRQ(ierr);
-//   ierr = DMPlexGetHeightStratum(da, 1, &fStart, &fEnd);CHKERRQ(ierr);
-//   /* ------------------------------------------------------------------------ */
-//
-//   DM                dmFace,gradDM,dmCell;      /* DMPLEX for face geometry */
-//   PetscFV           fvm;                /* specify type of FVM discretization */
-//   Vec               cellGeom, faceGeom; /* vector of structs related to cell/face geometry*/
-//   const PetscScalar *fgeom, *cgeom;             /* values stored in the vector facegeom */
-//   PetscFVFaceGeom   *fgA;               /* struct with face geometry information */
-//
-//   /*....Create FV object....*/
-//   ierr = PetscFVCreate(PETSC_COMM_WORLD, &fvm); CHKERRQ(ierr);
-//   /*....Set FV type: required for subsequent function call....*/
-//   ierr = PetscFVSetType(fvm,PETSCFVUPWIND); CHKERRQ(ierr);
-//   /*....Retrieve precomputed cell geometry....*/
-//   /*....fail to perform operations on gradDM....*/
-//   ierr = DMPlexGetDataFVM(da, fvm, &cellGeom, &faceGeom, &gradDM); CHKERRQ(ierr);
-//   /*....get DM defining the data layour of the faceGeom vector....*/
-//   // Setting the vector size/dimension using the DM
-//   ierr = VecGetDM(faceGeom, &dmFace); CHKERRQ(ierr);
-//   /*....Get read-only access to array from vector....*/
-//   /*....observe GetArray and RestoreArray to perform memory (de)allocation....*/
-//   ierr = VecGetArrayRead(faceGeom, &fgeom); CHKERRQ(ierr);
-//
-//   const PetscInt *cellcone;
-//   PetscScalar    centroid_x[2], centroid_y[2];
-//
-//   for (cell = cStart; cell < cEnd; cell++) {
-//     /* Obtaining the faces of the cell */
-//     DMPlexGetConeSize(da, cell, &nF);
-//     DMPlexGetCone(da, cell, &cellcone);
-//
-//     // south
-//     DMPlexPointLocalRead(dmFace, cellcone[0], fgeom, &fgA);
-//     centroid_y[0] = fgA->centroid[1];
-//     // North
-//     DMPlexPointLocalRead(dmFace, cellcone[2], fgeom, &fgA);
-//     centroid_y[1] = fgA->centroid[1];
-//     // west
-//     DMPlexPointLocalRead(dmFace, cellcone[3], fgeom, &fgA);
-//     centroid_x[0] = fgA->centroid[0];
-//     // east
-//     DMPlexPointLocalRead(dmFace, cellcone[1], fgeom, &fgA);
-//     centroid_x[1] = fgA->centroid[0];
-//
-//     user->delta_x = centroid_x[1] - centroid_x[0];
-//     user->delta_y = centroid_y[1] - centroid_y[0];
-//   }
-//   ierr = VecRestoreArrayRead(faceGeom, &fgeom); CHKERRQ(ierr);
-//
-// }
 
 /* ========================================================================== */
 
@@ -247,7 +201,7 @@ int main(int argc,char **argv)
   ierr = PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
   ierr = MPI_Comm_rank(PETSC_COMM_WORLD,&rank);CHKERRQ(ierr);
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-     Create distributed array (DMDA) to manage parallel grid and vectors
+     Create distributed array (DMPLEX) to manage parallel grid and vectors
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = ProcessOptions(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD, &user, &da);CHKERRQ(ierr);
@@ -256,6 +210,8 @@ int main(int argc,char **argv)
 
   /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     Specifying the fields and dof for the formula through PETSc Section
+
+    Create a scalar field u with 1 component on cells, faces and edges.
   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   PetscInt       dim = 2, numFields = 1, numBC, i;
   PetscInt       numComp[1];
@@ -264,16 +220,10 @@ int main(int argc,char **argv)
   PetscSection   section;
   IS             bcPointIS[1];
 
-  /* Create a scalar field u, a vector field v, and a surface vector field w */
   numComp[0] = 1;
 
   for (i = 0; i < numFields*(user.dim+1); ++i) numDof[i] = 0;
-  // Vertices - 0
-  // Faces - 1 or (dim - 1)
-  // Cells - 2 or (dim)
-  // numDof[field no * (dim + 1) + d]
-  // d - mesh dimension, use the above values
-  /* Let u be defined on cells and faces */
+
   numDof[0*(user.dim+1)]         = 1;
   numDof[0*(user.dim+1)+user.dim-1]   = 1;
   numDof[0*(user.dim+1)+user.dim]     = 1;
@@ -281,19 +231,22 @@ int main(int argc,char **argv)
   /* Setup boundary conditions */
   numBC = 1;
   /* Prescribe a Dirichlet condition on u on the boundary
-       Label "marker" is made by the mesh creation routine */
+     Label "marker" is made by the mesh creation routine  */
   bcField[0] = 0;
   ierr = DMGetStratumIS(da, "marker", 1, &bcPointIS[0]);CHKERRQ(ierr);
+
   /* Create a PetscSection with this data layout */
   ierr = DMSetNumFields(da, numFields);CHKERRQ(ierr);
   ierr = DMPlexCreateSection(da, NULL, numComp, numDof, numBC, bcField, NULL, bcPointIS, NULL, &section);CHKERRQ(ierr);
   ierr = ISDestroy(&bcPointIS[0]);CHKERRQ(ierr);
+
   /* Name the Field variables */
   ierr = PetscSectionSetFieldName(section, 0, "u");CHKERRQ(ierr);
-  /* Tell the DM to use this data layout */
+
+  /* Tell the DM to use this section (with the specified fields and dof) */
   ierr = DMSetLocalSection(da, section);CHKERRQ(ierr);
   user.da = da;
-  // ierr = FindMeshWidths(PETSC_COMM_WORLD, &user);CHKERRQ(ierr);
+
   /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Extract global vectors from DMDA; then duplicate for remaining
      vectors that are the same types
@@ -388,7 +341,7 @@ int main(int argc,char **argv)
    Input Parameters:
 .  ts - the TS context
 .  X - input vector
-.  ptr - optional user-defined context, as set by SNESSetFunction()
+.  ctx - optional user-defined context, as set by SNESSetFunction()
 
    Output Parameter:
 .  F - function vector
@@ -405,29 +358,36 @@ PetscErrorCode FormFunction(TS ts,PetscReal ftime,Vec X,Vec F,void *ctx)
   PetscInt       cell, cStart, cEnd, nC;
 
 
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Get the local vector from the DM object.
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
   PetscFunctionBeginUser;
   ierr = DMGetLocalVector(da,&localX);CHKERRQ(ierr);
 
 
-  /*
-     Scatter ghost points to local vector,using the 2-step process
-        DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
-     By placing code between these two statements, computations can be
-     done while messages are in transition.
-  */
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  Scatter ghost points to local vector,using the 2-step process
+  DMGlobalToLocalBegin(),DMGlobalToLocalEnd().
+
+  By placing code between these two statements, computations can be
+  done while messages are in transition.
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
   ierr = DMGlobalToLocalBegin(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
   ierr = DMGlobalToLocalEnd(da,X,INSERT_VALUES,localX);CHKERRQ(ierr);
 
-  /*
-     Get pointers to vector data
-  */
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Get pointers to vector data.
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecGetArray(localX, &x);CHKERRQ(ierr);
   ierr = VecGetArray(F, &f);CHKERRQ(ierr);
 
-  /* ---------------Obtaining local cell and face ownership------------------ */
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Obtaining local cell and face ownership
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = DMPlexGetHeightStratum(da, 0, &cStart, &cEnd);CHKERRQ(ierr);
   ierr = DMPlexGetHeightStratum(da, 1, &fStart, &fEnd);CHKERRQ(ierr);
-  /* ------------------------------------------------------------------------ */
 
   DM                dmFace,gradDM,dmCell;      /* DMPLEX for face geometry */
   PetscFV           fvm;                /* specify type of FVM discretization */
@@ -435,6 +395,11 @@ PetscErrorCode FormFunction(TS ts,PetscReal ftime,Vec X,Vec F,void *ctx)
   const PetscScalar *fgeom, *cgeom;             /* values stored in the vector facegeom */
   PetscFVFaceGeom   *fgA;               /* struct with face geometry information */
 
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Creating the PetscFV object to obtain face and cell geometry.
+
+     Later to be used to compute face centroid to find cell widths.
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   /*....Create FV object....*/
   ierr = PetscFVCreate(PETSC_COMM_WORLD, &fvm); CHKERRQ(ierr);
   /*....Set FV type: required for subsequent function call....*/
@@ -449,10 +414,10 @@ PetscErrorCode FormFunction(TS ts,PetscReal ftime,Vec X,Vec F,void *ctx)
   /*....observe GetArray and RestoreArray to perform memory (de)allocation....*/
   ierr = VecGetArrayRead(faceGeom, &fgeom); CHKERRQ(ierr);
 
-  /*
-     Spanning through all the cells and an inner loop through the
-     faces. Find the face neighbors and pick the upwinded cell value for flux.
-  */
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  Spanning through all the cells and an inner loop through the faces. Find the
+  face neighbors and pick the upwinded cell value for flux.
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   const PetscInt *cellcone, *cell_ids, *cellsupport;
   PetscInt       no_cells ;
   PetscScalar    flux_east, flux_west, flux_north, flux_south, flux_centre;
@@ -471,44 +436,45 @@ PetscErrorCode FormFunction(TS ts,PetscReal ftime,Vec X,Vec F,void *ctx)
     DMPlexGetConeSize(da, cell, &nF);
     DMPlexGetCone(da, cell, &cellcone);
 
-    // south
+    /* south */
     DMPlexPointLocalRead(dmFace, cellcone[0], fgeom, &fgA);
     centroid_y[0] = fgA->centroid[1];
-    // North
+    /* North */
     DMPlexPointLocalRead(dmFace, cellcone[2], fgeom, &fgA);
     centroid_y[1] = fgA->centroid[1];
-    // west
+    /* West */
     DMPlexPointLocalRead(dmFace, cellcone[3], fgeom, &fgA);
     centroid_x[0] = fgA->centroid[0];
-    // east
+    /* East */
     DMPlexPointLocalRead(dmFace, cellcone[1], fgeom, &fgA);
     centroid_x[1] = fgA->centroid[0];
 
+    /* Computing the cell widths in the x and y direction */
     delta_x = centroid_x[1] - centroid_x[0];
     delta_y = centroid_y[1] - centroid_y[0];
 
-    /* Getting the neighbors of each face */
+    /* Getting the neighbors of each face
+       Going through the faces by the order (cellcone) */
 
-    // Going through the faces by the order (cellcone)
-    // cellcone[0] - south
+    /* cellcone[0] - south */
     DMPlexGetSupportSize(da, cellcone[0], &nC);
     DMPlexGetSupport(da, cellcone[0], &cellsupport);
     if(nC == 2) flux_south = - (x[cellsupport[0]] * v_plus) / delta_y;
     else flux_south = - (boundary * v_plus) / delta_y;
 
-    // cellcone[1] - east
+    /* cellcone[1] - east */
     DMPlexGetSupportSize(da, cellcone[1], &nC);
     DMPlexGetSupport(da, cellcone[1], &cellsupport);
     if(nC == 2) flux_east = (x[cellsupport[1]] * u_minus) / delta_x;
     else flux_east = (boundary * u_minus) / delta_x;
 
-    // cellcone[2] - north
+    /* cellcone[2] - north */
     DMPlexGetSupportSize(da, cellcone[2], &nC);
     DMPlexGetSupport(da, cellcone[2], &cellsupport);
     if(nC == 2) flux_north = (x[cellsupport[1]] * v_minus) / delta_y;
     else flux_north = (boundary * v_minus) / delta_y;
 
-    // cellcone[3] - west
+    /* cellcone[3] - west */
     DMPlexGetSupportSize(da, cellcone[3], &nC);
     DMPlexGetSupport(da, cellcone[3], &cellsupport);
     if(nC == 2) flux_west = - (x[cellsupport[0]] * u_plus) / delta_x;
@@ -517,16 +483,18 @@ PetscErrorCode FormFunction(TS ts,PetscReal ftime,Vec X,Vec F,void *ctx)
        // print("fluxes of cell %d s=%f, e=%f, n=%f, w=%f \n",cell, flux_south, flux_east, flux_north, flux_west);
      }
 
+    /* Contribution by the cell to the fluxes */
     flux_centre = x[cell] * ((u_plus - u_minus)/delta_x + (v_plus - v_minus)/delta_y);
 
-    // Need to multiply with delta x and delta y
+    /* Calculating the net flux for each cell
+       and computing the RHS time derivative f[.] */
     f[cell] = - (flux_centre + flux_east + flux_west + flux_north + flux_south);
 
   }
-  // printf("delta x = %f, delta_y = %f \n", delta_x, delta_y);
-  /*
+
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Restore vectors
-  */
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecRestoreArray(localX,&x);CHKERRQ(ierr);
   ierr = VecRestoreArray(F,&f);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(da,&localX);CHKERRQ(ierr);
@@ -540,38 +508,43 @@ PetscErrorCode FormInitialSolution(DM da,Vec U)
   PetscErrorCode ierr;
   PetscScalar    *u;
 
-  /*
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    This routine is responsible for defining the local solution vector x
+    with a given initial solution.
+
+    The initial solution can be modified accordingly inside the loops.
+
     No need for a local vector because there is exchange of information
     across the processors. Unlike for FormFunction which depends on the neighbours
-  */
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   PetscFunctionBeginUser;
-  /*
+
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Get pointers to vector data
-  */
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecGetArray(U, &u);CHKERRQ(ierr);
 
-  /*
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Get local grid boundaries
-  */
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   PetscInt cell, cStart, cEnd;
   PetscReal cellvol, centroid[3], normal[3];
   ierr = DMPlexGetHeightStratum(da, 0, &cStart, &cEnd);CHKERRQ(ierr);
 
-  /*
-     Compute function over the locally owned part of the grid
-  */
-  // Assigning the values at the cell centers based on x and y directions
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     Assigning the values at the cell centers based on x and y directions
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   for (cell = cStart; cell < cEnd; cell++) {
     DMPlexComputeCellGeometryFVM(da, cell, &cellvol, centroid, normal);
-    if (centroid[0] > 0.9 && centroid[0] < 0.95) u[cell] = 2.0;
-      // if (centroid[1] > 0.9 && centroid[1] < 0.95) u[cell] = 2.0;
+    if (centroid[0] > 0.9 && centroid[0] < 0.95)
+      if (centroid[1] > 0.9 && centroid[1] < 0.95) u[cell] = 2.0;
     else u[cell] = 0;
-  } /*..end for loop over cells..*/
+  }
 
-  /*
+  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      Restore vectors
-  */
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
   ierr = VecRestoreArray(U,&u);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -612,14 +585,14 @@ PetscErrorCode MySNESMonitor(SNES snes,PetscInt its,PetscReal fnorm,PetscViewerA
 /*TEST
 
     test:
-      args: -ts_max_steps 5
+      args: -ts_max_steps 5 -draw_pause 10
 
     test:
       suffix: 2
-      args: -ts_max_steps 5  -snes_mf_operator
+      args: -ts_max_steps 5  -u 1.0 -v 0.0 -draw_pause 10
 
     test:
       suffix: 3
-      args: -ts_max_steps 5  -snes_mf -pc_type none
+      args: -ts_max_steps 5 -ts_type glle -u 1.0 -v 0.0 -draw_pause 10
 
 TEST*/
