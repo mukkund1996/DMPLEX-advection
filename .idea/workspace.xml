@@ -9,11 +9,24 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ce100687-d6fd-48ed-8a89-03ac9393e219" name="Default Changelist" comment="">
+    <list default="true" id="ce100687-d6fd-48ed-8a89-03ac9393e219" name="Default Changelist" comment="Reformatted and documented.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection.c" beforeDir="false" afterPath="$PROJECT_DIR$/advection.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion.c" beforeDir="false" afterPath="$PROJECT_DIR$/advection_diffusion.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.c" beforeDir="false" afterPath="$PROJECT_DIR$/advection_diffusion_bratu.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection.dSYM/Contents/Info.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection.dSYM/Contents/Resources/DWARF/advection" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion.dSYM/Contents/Info.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion.dSYM/Contents/Resources/DWARF/advection_diffusion" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.dSYM/Contents/Info.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.dSYM/Contents/Resources/DWARF/advection_diffusion_bratu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/shallow_water_plex" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/shallow_water_plex.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/shallow_water_plex.dSYM/Contents/Info.plist" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/shallow_water_plex.dSYM/Contents/Resources/DWARF/shallow_water_plex" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +40,9 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1YQtLX9xR3KfSeGFhQAgFysDQsM" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="true" />
@@ -50,7 +66,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1582886589874</updated>
-      <workItem from="1582886591645" duration="3059000" />
+      <workItem from="1582886591645" duration="3812000" />
     </task>
     <task id="LOCAL-00001" summary="Reformatted and documented.">
       <created>1582887883320</created>
@@ -72,6 +88,7 @@
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <option name="CHECK_NEW_TODO" value="false" />
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="Reformatted and documented." />
     <option name="LAST_COMMIT_MESSAGE" value="Reformatted and documented." />
   </component>
