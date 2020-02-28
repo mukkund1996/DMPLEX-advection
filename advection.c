@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
 
       Create a scalar field u with 1 component on cells, faces and edges.
     - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    PetscInt dim = 2, numFields = 1, numBC, i;
+    PetscInt numFields = 1, numBC, i;
     PetscInt numComp[1];
     PetscInt numDof[numFields * (user.dim + 1)];
     PetscInt bcField[1];
@@ -430,8 +430,7 @@ PetscErrorCode FormFunction(TS ts, PetscReal ftime, Vec X, Vec F, void *ctx) {
     PetscErrorCode ierr;
     PetscScalar *x, *f;
     Vec localX;
-    PetscInt i, j, node, nStart, nEnd, nN;
-    PetscInt face, fStart, fEnd, nF;
+    PetscInt fStart, fEnd, nF;
     PetscInt cell, cStart, cEnd, nC;
 
 
@@ -473,10 +472,10 @@ PetscErrorCode FormFunction(TS ts, PetscReal ftime, Vec X, Vec F, void *ctx) {
     ierr = DMPlexGetHeightStratum(da, 1, &fStart, &fEnd);
     CHKERRQ(ierr);
 
-    DM dmFace, gradDM, dmCell;      /* DMPLEX for face geometry */
+    DM dmFace, gradDM;      /* DMPLEX for face geometry */
     PetscFV fvm;                /* specify type of FVM discretization */
     Vec cellGeom, faceGeom; /* vector of structs related to cell/face geometry*/
-    const PetscScalar *fgeom, *cgeom;             /* values stored in the vector facegeom */
+    const PetscScalar *fgeom;             /* values stored in the vector facegeom */
     PetscFVFaceGeom *fgA;               /* struct with face geometry information */
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -507,8 +506,7 @@ PetscErrorCode FormFunction(TS ts, PetscReal ftime, Vec X, Vec F, void *ctx) {
     Spanning through all the cells and an inner loop through the faces. Find the
     face neighbors and pick the upwinded cell value for flux.
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-    const PetscInt *cellcone, *cell_ids, *cellsupport;
-    PetscInt no_cells;
+    const PetscInt *cellcone, *cellsupport;
     PetscScalar flux_east, flux_west, flux_north, flux_south, flux_centre;
     PetscScalar centroid_x[2], centroid_y[2], boundary = 0.0;
     PetscScalar boundary_left = 0.0;
@@ -630,9 +628,10 @@ PetscErrorCode FormInitialSolution(DM da, Vec U) {
      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
     for (cell = cStart; cell < cEnd; cell++) {
         DMPlexComputeCellGeometryFVM(da, cell, &cellvol, centroid, normal);
-        if (centroid[0] > 0.9 && centroid[0] < 0.95)
+        if (centroid[0] > 0.9 && centroid[0] < 0.95) {
             if (centroid[1] > 0.9 && centroid[1] < 0.95) u[cell] = 2.0;
-            else u[cell] = 0;
+        }
+        else u[cell] = 0;
     }
 
     /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
