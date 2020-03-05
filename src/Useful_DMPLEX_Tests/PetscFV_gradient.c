@@ -3,7 +3,7 @@ static char help[] = "Testing the gradient computations of a PetscFV object \n\n
 #include <petscdmplex.h>
 
 #if defined(PETSC_HAVE_CGNS)
-#undef I /* Very old CGNS stupidly uses I as a variable, which fails when using complex. Curse you idiot package managers */
+#undef I 
 #include <cgnslib.h>
 #endif
 #if defined(PETSC_HAVE_EXODUSII)
