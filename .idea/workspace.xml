@@ -10,23 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ce100687-d6fd-48ed-8a89-03ac9393e219" name="Default Changelist" comment="Reformatted and documented.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection.dSYM/Contents/Info.plist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection.dSYM/Contents/Resources/DWARF/advection" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion.dSYM/Contents/Info.plist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion.dSYM/Contents/Resources/DWARF/advection_diffusion" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.dSYM/Contents/Info.plist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/advection_diffusion_bratu.dSYM/Contents/Resources/DWARF/advection_diffusion_bratu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/shallow_water_plex" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/shallow_water_plex.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/shallow_water_plex.dSYM/Contents/Info.plist" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/shallow_water_plex.dSYM/Contents/Resources/DWARF/shallow_water_plex" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Advection_riemann/advection_riemann_petsc.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/Advection_riemann/advection_riemann_petsc.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,6 +51,7 @@
       <option name="presentableId" value="Default" />
       <updated>1582886589874</updated>
       <workItem from="1582886591645" duration="3812000" />
+      <workItem from="1585263427297" duration="127000" />
     </task>
     <task id="LOCAL-00001" summary="Reformatted and documented.">
       <created>1582887883320</created>

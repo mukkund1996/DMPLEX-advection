@@ -359,6 +359,6 @@ int main(int argc, char **argv) {
 
     test:
       suffix: 2
-      args: -ts_max_time 5.0
+      args: -grid_x 10 -grid_y 10 -ts_type rk -ts_rk_type rk4
 
 TEST*/
